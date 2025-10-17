@@ -499,7 +499,7 @@ async def choose_chapters_to_finish(message: Message):
             done_list.append(t["chapter"])
 
 
-    # === Логіка створення наступних етапів ===
+  # === Логіка створення наступних етапів ===
 role_chain = ["✍️ Переклад", "🧼 Клін", "🖋 Ред", "🧩 Тайп", "👁 Бета"]
 
 def ensure_previous_roles(tasks, title, chapter, current_role):
@@ -571,7 +571,6 @@ for chapter in done_list:
         with open(completed_file, "w", encoding="utf-8") as f:
             json.dump(completed, f, indent=2, ensure_ascii=False)
 
-
 save_tasks(tasks)
 user_finish_state.pop(user_id, None)
 
@@ -579,6 +578,7 @@ users = load_users()
 roles = users.get(user_id, {}).get("roles", [])
 menu = build_main_menu(roles)
 
+# 💥 ВАЖНО: всё это должно быть ВНУТРИ async def choose_chapters_to_finish
 if done_list:
     await message.answer(
         f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
@@ -646,6 +646,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
