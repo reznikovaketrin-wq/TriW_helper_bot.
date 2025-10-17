@@ -499,99 +499,97 @@ async def choose_chapters_to_finish(message: Message):
             done_list.append(t["chapter"])
 
 
-  # === Логіка створення наступних етапів ===
-role_chain = ["✍️ Переклад", "🧼 Клін", "🖋 Ред", "🧩 Тайп", "👁 Бета"]
+    # === Логіка створення наступних етапів ===
+    role_chain = ["✍️ Переклад", "🧼 Клін", "🖋 Ред", "🧩 Тайп", "👁 Бета"]
 
-def ensure_previous_roles(tasks, title, chapter, current_role):
-    """Створює попередні етапи, якщо їх немає."""
-    current_index = role_chain.index(current_role)
-    for prev_role in role_chain[:current_index]:
-        exists = any(
-            t["title"] == title and t["chapter"] == chapter and t["role"] == prev_role
-            for t in tasks.values()
+    def ensure_previous_roles(tasks, title, chapter, current_role):
+        """Створює попередні етапи, якщо їх немає."""
+        current_index = role_chain.index(current_role)
+        for prev_role in role_chain[:current_index]:
+            exists = any(
+                t["title"] == title and t["chapter"] == chapter and t["role"] == prev_role
+                for t in tasks.values()
+            )
+            if not exists:
+                next_id = str(max([int(k) for k in tasks.keys()] + [0]) + 1)
+                tasks[next_id] = {
+                    "title": title,
+                    "chapter": chapter,
+                    "role": prev_role,
+                    "status": "готово"  # позначаємо попередній етап як завершений
+                }
+
+    for chapter in done_list:
+        # 0️⃣ Гарантуємо, що всі попередні ролі існують
+        ensure_previous_roles(tasks, title, chapter, role)
+
+        # 1️⃣ Якщо готовий Переклад → створюємо Ред
+        if role == "✍️ Переклад":
+            create_next_stage(tasks, title, chapter, "🖋 Ред")
+
+        # 2️⃣ Якщо готовий Клін → перевіряємо чи вже є готовий Ред, тоді створюємо Тайп
+        elif role == "🧼 Клін":
+            red_done = any(
+                tt["title"] == title and tt["chapter"] == chapter and tt["role"] == "🖋 Ред" and tt["status"] == "готово"
+                for tt in tasks.values()
+            )
+            if red_done:
+                create_next_stage(tasks, title, chapter, "🧩 Тайп")
+
+        # 3️⃣ Якщо готовий Ред → перевіряємо чи вже є готовий Клін, тоді створюємо Тайп
+        elif role == "🖋 Ред":
+            clean_done = any(
+                tt["title"] == title and tt["chapter"] == chapter and tt["role"] == "🧼 Клін" and tt["status"] == "готово"
+                for tt in tasks.values()
+            )
+            if clean_done:
+                create_next_stage(tasks, title, chapter, "🧩 Тайп")
+
+        # 4️⃣ Якщо готовий Тайп → створюємо Бету
+        elif role == "🧩 Тайп":
+            create_next_stage(tasks, title, chapter, "👁 Бета")
+
+        # 5️⃣ Якщо готова Бета → фіксуємо завершення
+        elif role == "👁 Бета":
+            completed_file = "database/completed.json"
+            if os.path.exists(completed_file):
+                with open(completed_file, "r", encoding="utf-8") as f:
+                    try:
+                        completed = json.load(f)
+                    except json.JSONDecodeError:
+                        completed = {}
+            else:
+                completed = {}
+
+            if title not in completed:
+                completed[title] = []
+
+            for ch in done_chapters:
+                if ch not in completed[title]:
+                    completed[title].append(ch)
+
+            with open(completed_file, "w", encoding="utf-8") as f:
+                json.dump(completed, f, indent=2, ensure_ascii=False)
+
+    save_tasks(tasks)
+    user_finish_state.pop(user_id, None)
+
+    users = load_users()
+    roles = users.get(user_id, {}).get("roles", [])
+    menu = build_main_menu(roles)
+
+    if done_list:
+        await message.answer(
+            f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
+            f"➡️ Наступні етапи створено автоматично (якщо умови виконані).",
+            parse_mode="Markdown",
+            reply_markup=menu
         )
-        if not exists:
-            next_id = str(max([int(k) for k in tasks.keys()] + [0]) + 1)
-            tasks[next_id] = {
-                "title": title,
-                "chapter": chapter,
-                "role": prev_role,
-                "status": "готово"  # позначаємо попередній етап як завершений
-            }
-
-for chapter in done_list:
-    # 0️⃣ Гарантуємо, що всі попередні ролі існують
-    ensure_previous_roles(tasks, title, chapter, role)
-
-    # 1️⃣ Якщо готовий Переклад → створюємо Ред
-    if role == "✍️ Переклад":
-        create_next_stage(tasks, title, chapter, "🖋 Ред")
-
-    # 2️⃣ Якщо готовий Клін → перевіряємо чи вже є готовий Ред, тоді створюємо Тайп
-    elif role == "🧼 Клін":
-        red_done = any(
-            tt["title"] == title and tt["chapter"] == chapter and tt["role"] == "🖋 Ред" and tt["status"] == "готово"
-            for tt in tasks.values()
+    else:
+        await message.answer(
+            "❌ Не знайдено збігів або ці глави вже були завершені.",
+            reply_markup=menu
         )
-        if red_done:
-            create_next_stage(tasks, title, chapter, "🧩 Тайп")
-
-    # 3️⃣ Якщо готовий Ред → перевіряємо чи вже є готовий Клін, тоді створюємо Тайп
-    elif role == "🖋 Ред":
-        clean_done = any(
-            tt["title"] == title and tt["chapter"] == chapter and tt["role"] == "🧼 Клін" and tt["status"] == "готово"
-            for tt in tasks.values()
-        )
-        if clean_done:
-            create_next_stage(tasks, title, chapter, "🧩 Тайп")
-
-    # 4️⃣ Якщо готовий Тайп → створюємо Бету
-    elif role == "🧩 Тайп":
-        create_next_stage(tasks, title, chapter, "👁 Бета")
-
-    # 5️⃣ Якщо готова Бета → фіксуємо завершення
-    elif role == "👁 Бета":
-        completed_file = "database/completed.json"
-        if os.path.exists(completed_file):
-            with open(completed_file, "r", encoding="utf-8") as f:
-                try:
-                    completed = json.load(f)
-                except json.JSONDecodeError:
-                    completed = {}
-        else:
-            completed = {}
-
-        if title not in completed:
-            completed[title] = []
-
-        for ch in done_chapters:
-            if ch not in completed[title]:
-                completed[title].append(ch)
-
-        with open(completed_file, "w", encoding="utf-8") as f:
-            json.dump(completed, f, indent=2, ensure_ascii=False)
-
-save_tasks(tasks)
-user_finish_state.pop(user_id, None)
-
-users = load_users()
-roles = users.get(user_id, {}).get("roles", [])
-menu = build_main_menu(roles)
-
-# 💥 ВАЖНО: всё это должно быть ВНУТРИ async def choose_chapters_to_finish
-if done_list:
-    await message.answer(
-        f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
-        f"➡️ Наступні етапи створено автоматично (якщо умови виконані).",
-        parse_mode="Markdown",
-        reply_markup=menu
-    )
-else:
-    await message.answer(
-        "❌ Не знайдено збігів або ці глави вже були завершені.",
-        reply_markup=menu
-    )
-
 
 # --- Обробка натискання "Назад у меню" ---
 @dp.message(F.text == "⬅️ Назад у меню")
@@ -646,6 +644,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
