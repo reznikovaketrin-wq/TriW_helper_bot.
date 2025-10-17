@@ -579,7 +579,7 @@ users = load_users()
 roles = users.get(user_id, {}).get("roles", [])
 menu = build_main_menu(roles)
 
-  if done_list:
+ if done_list:
      await message.answer(
           f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
           f"➡️ Наступні етапи створено автоматично (якщо умови виконані).",
@@ -646,6 +646,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
