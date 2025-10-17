@@ -579,17 +579,17 @@ users = load_users()
 roles = users.get(user_id, {}).get("roles", [])
 menu = build_main_menu(roles)
 
- if done_list:
-     await message.answer(
-          f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
-          f"➡️ Наступні етапи створено автоматично (якщо умови виконані).",
-         parse_mode="Markdown",
-         reply_markup=menu
-     )
- else:
+if done_list:
+    await message.answer(
+        f"✅ Завершено ({len(done_list)}) для ролі {role}: *{title}* — глави {', '.join(done_list)}.\n"
+        f"➡️ Наступні етапи створено автоматично (якщо умови виконані).",
+        parse_mode="Markdown",
+        reply_markup=menu
+    )
+else:
     await message.answer(
         "❌ Не знайдено збігів або ці глави вже були завершені.",
-         reply_markup=menu
+        reply_markup=menu
     )
 
 
@@ -646,6 +646,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
