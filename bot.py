@@ -572,12 +572,12 @@ for chapter in done_list:
             json.dump(completed, f, indent=2, ensure_ascii=False)
 
 
-    save_tasks(tasks)
-    user_finish_state.pop(user_id, None)
+save_tasks(tasks)
+user_finish_state.pop(user_id, None)
 
-    users = load_users()
-    roles = users.get(user_id, {}).get("roles", [])
-    menu = build_main_menu(roles)
+users = load_users()
+roles = users.get(user_id, {}).get("roles", [])
+menu = build_main_menu(roles)
 
     if done_list:
         await message.answer(
@@ -591,7 +591,6 @@ for chapter in done_list:
             "❌ Не знайдено збігів або ці глави вже були завершені.",
             reply_markup=menu
         )
-
 
 
 # --- Обробка натискання "Назад у меню" ---
@@ -647,4 +646,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
